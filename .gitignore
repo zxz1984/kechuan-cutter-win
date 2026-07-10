@@ -1,0 +1,41 @@
+# 编辑器
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# 依赖
+node_modules/
+dist/
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/
+
+# 日志
+*.log
+
+# Cola-Cutter 额外忽略（v1.0.14 打包上传准备）
+# Win 打包时拷贝的 ffmpeg.exe（每个开发者本地生成，不入仓）
+bin/ffmpeg.exe
+# Tauri build 产物
+src-tauri/target/
+src-tauri/Cargo.lock.bak
+# 备份目录
+backups/
+
+# Cola-Cutter 额外忽略（v1.0.14 打包上传准备）
+# Win 打包时拷贝的 ffmpeg.exe（每个开发者本地生成，不入仓）
+bin/ffmpeg.exe
+# Tauri build 产物
+src-tauri/target/
+src-tauri/Cargo.lock.bak
+# 备份目录
+backups/
+
+# Cola-Cutter 额外忽略（防止大文件入仓）
+bin/ffmpeg-darwin-x64
+bin/ffmpeg.exe
+src-tauri/target/
+src-tauri/Cargo.lock.bak
+backups/
