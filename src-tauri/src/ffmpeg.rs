@@ -43,15 +43,22 @@ pub fn resolve_bin(name: &str) -> String {
             }
         }
 
-        // 1) Tauri bundle 内（生产 .app 模式）
+        // 1) Tauri bundle 内（生产 .app / Win 安装包模式）
         if found.is_none() {
             if let Ok(exe) = std::env::current_exe() {
                 if let Some(dir) = exe.parent() {
+                    // 构造候选：macOS .app 的 Resources/，Win 安装包同目录 + resources/ 子目录
+                    let bin_with_ext = if cfg!(windows) {
+                        format!("{}.exe", bin)
+                    } else {
+                        bin.to_string()
+                    };
                     let candidates = [
-                        dir.join(format!("../Resources/{}", bin)),
-                        dir.join(format!("../Resources/_up_/bin/{}", bin)),
-                        dir.join(format!("Resources/{}", bin)),
-                        dir.join(bin),
+                        dir.join(format!("../Resources/{}", bin_with_ext)),
+                        dir.join(format!("../Resources/_up_/bin/{}", bin_with_ext)),
+                        dir.join(format!("Resources/{}", bin_with_ext)),
+                        dir.join(&bin_with_ext),
+                        dir.join("resources").join(&bin_with_ext), // Tauri 2 Win 默认放 resources/
                     ];
                     for c in &candidates {
                         if c.exists() {
@@ -68,14 +75,14 @@ pub fn resolve_bin(name: &str) -> String {
         }
 
         // 2) 项目本地 bin/（dev 模式关键）
-        //    exe 路径：src-tauri/target/debug/cola-cutter
-        //    往上 3 层 → 项目根 → bin/ffmpeg-darwin-x64
+        //    exe 路径：src-tauri/target/debug/cola-cutter(.exe)
+        //    往上 3 层 → 项目根 → bin/ffmpeg-darwin-x64 或 bin/ffmpeg.exe
         if found.is_none() {
             if let Ok(exe) = std::env::current_exe() {
-                // ancestors(): [cola-cutter, debug, target, src-tauri, project_root]
+                // ancestors(): [cola-cutter(.exe), debug, target, src-tauri, project_root]
                 // 第 4 个是项目根
                 if let Some(project_root) = exe.ancestors().nth(4) {
-                    for sub in ["bin/ffmpeg-darwin-x64", "bin/ffmpeg"] {
+                    for sub in ["bin/ffmpeg-darwin-x64", "bin/ffmpeg", "bin/ffmpeg.exe"] {
                         let local = project_root.join(sub);
                         if local.exists() {
                             if let Ok(canon) = local.canonicalize() {
