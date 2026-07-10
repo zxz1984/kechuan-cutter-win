@@ -6,6 +6,7 @@ use crate::ffmpeg;
 use crate::vision::{self, FrameShot};
 use serde::{Deserialize, Serialize};
 use std::fs;
+#[cfg(unix)]
 use std::os::unix::process::CommandExt;
 use std::process::Stdio;
 use std::path::Path;
@@ -537,9 +538,10 @@ async fn remux_for_safe_cut(src: &str) -> Result<String, String> {
     let mut cmd = std::process::Command::new(ffmpeg::resolve_bin("ffmpeg"));
     cmd.args(["-y", "-hide_banner", "-loglevel", "error", "-i", src, "-map", "0:v:0", "-map", "0:a?", "-c", "copy", "-movflags", "+faststart"])
         .arg(&out_str)
-        .process_group(0)
         .stdout(Stdio::null())
         .stderr(Stdio::null());
+    #[cfg(unix)]
+    cmd.process_group(0);
     let mut child = cmd.spawn().map_err(|e| format!("remux 启动失败: {}", e))?;
     let status = tokio::task::spawn_blocking(move || {
         let start = std::time::Instant::now();
@@ -610,9 +612,10 @@ async fn cut_one_inner(src: &str, start: f64, end: f64, out_path: &str) -> Resul
         "-movflags", "+faststart",
     ])
     .arg(&tmp_str)
-    .process_group(0)  // ← setsid，让子进程脱离父进程组 + session，独立 SIGCHLD
     .stdout(Stdio::null())
     .stderr(Stdio::null()); // v1.0.12：不能用 piped，没人读会撑爆 pipe buffer 让 ffmpeg hang
+    #[cfg(unix)]
+    cmd.process_group(0);  // ← setsid，让子进程脱离父进程组 + session，独立 SIGCHLD（Win 没有这方法）
 
     let mut child = cmd.spawn().map_err(|e| format!("启动 ffmpeg 失败: {}", e))?;
     dlog_cutter!("[cut_one_inner] ffmpeg 启动, pid={}", child.id());
