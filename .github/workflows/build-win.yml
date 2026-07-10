@@ -69,13 +69,16 @@ jobs:
         with:
           args: --target x86_64-pc-windows-msvc --bundles nsis,msi
 
-      # 7. 兜底：手动把安装包再上传一次（tauri-action 也会传，但保留兜底以防路径变化）
-      - name: 📤 上传安装包（兜底）
+      # 7. 兜底：手动把安装包再上传一次
+      # if: always() 让这步即使在 tauri-action 失败时也跑
+      # （之前 MSI 那步挂掉时，NSIS .exe 已经产出但被跳过没传上来）
+      - name: 📤 上传安装包（兜底 + always）
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: 可乐裁切-安装包
           path: |
             src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
             src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
-          if-no-files-found: warn  # 改成 warn 避免 tauri-action 已传过的情况下报错
+          if-no-files-found: warn  # 没文件不报错（MSI 可能没产出）
           retention-days: 14
