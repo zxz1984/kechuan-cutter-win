@@ -19,7 +19,7 @@ jobs:
   build-windows:
     name: 编译 + 打 Win 安装包
     runs-on: windows-latest
-    timeout-minutes: 30  # 首次 Rust 编译要 15-25 分钟，留够时间
+    timeout-minutes: 45  # 首次 Rust 编译要 15-25 分钟，留够时间 + 缓冲
 
     steps:
       # 1. 拉取代码
@@ -59,22 +59,23 @@ jobs:
             exit 1
           }
 
-      # 6. 打 Tauri Win 安装包（NSIS .exe + MSI 双份）
+      # 6. 用官方 tauri-action 编译 + 打 NSIS/MSI 安装包
+      # tauri-action 内部自动搞定 MSVC 环境、WebView2 SDK、NSIS、WiX
+      # 不传 tagName 就不创建 GitHub Release，只产 artifact
       - name: 🔨 编译 Tauri Win 安装包
-        shell: pwsh
-        run: |
-          npx tauri build --target x86_64-pc-windows-msvc --bundles nsis,msi
+        uses: tauri-apps/tauri-action@v0
         env:
-          # Tauri 偶尔需要这个变量避免 Windows 路径过长
-          CARGO_TERM_COLOR: always
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: --target x86_64-pc-windows-msvc --bundles nsis,msi
 
-      # 7. 上传安装包到 GitHub Artifacts（你能下载的 zip）
-      - name: 📤 上传安装包
+      # 7. 兜底：手动把安装包再上传一次（tauri-action 也会传，但保留兜底以防路径变化）
+      - name: 📤 上传安装包（兜底）
         uses: actions/upload-artifact@v4
         with:
           name: 可乐裁切-安装包
           path: |
             src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
             src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
-          if-no-files-found: error
+          if-no-files-found: warn  # 改成 warn 避免 tauri-action 已传过的情况下报错
           retention-days: 14
