@@ -30,8 +30,11 @@
     "icon": [
       "icons/icon.icns"
     ],
-    "resources": [
-      "../bin/ffmpeg-darwin-x64"
-    ]
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "installMode": "perMachine"
+      }
+    }
   }
 }

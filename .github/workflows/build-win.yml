@@ -1,0 +1,74 @@
+name: 打包 Windows 安装包（可乐裁切）
+
+on:
+  workflow_dispatch:  # 手动触发（你点 Actions 页面的 Run workflow）
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'src-tauri/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.js'
+      - 'tsconfig.json'
+      - 'tsconfig.node.json'
+      - 'index.html'
+      - '.github/workflows/build-win.yml'
+
+jobs:
+  build-windows:
+    name: 编译 + 打 Win 安装包
+    runs-on: windows-latest
+    timeout-minutes: 30  # 首次 Rust 编译要 15-25 分钟，留够时间
+
+    steps:
+      # 1. 拉取代码
+      - name: 📥 拉取代码
+        uses: actions/checkout@v4
+
+      # 2. 装 Node 20（项目用 npm 装前端依赖 + ffmpeg-installer 触发下载 win 版 ffmpeg）
+      - name: 📦 装 Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # 3. 装前端依赖（会触发 @ffmpeg-installer/ffmpeg 下载 win 版 ffmpeg 到 node_modules/@ffmpeg-installer/win32-x64/）
+      - name: 📚 装 npm 依赖
+        run: npm install
+        shell: pwsh
+
+      # 4. 把 win 版 ffmpeg.exe 拷到 bin/ffmpeg.exe（Rust 端的 resolve_bin 已经会找 bin/ffmpeg.exe）
+      - name: 🎬 拷 ffmpeg.exe 到 bin/
+        shell: pwsh
+        run: |
+          $src = Get-ChildItem -Path "node_modules\@ffmpeg-installer" -Recurse -Filter "ffmpeg.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($src) {
+            New-Item -ItemType Directory -Force -Path "bin" | Out-Null
+            Copy-Item -Path $src.FullName -Destination "bin\ffmpeg.exe" -Force
+            Write-Host "✅ ffmpeg.exe copied from $($src.FullName)"
+            Write-Host "Size: $((Get-Item 'bin\ffmpeg.exe').Length) bytes"
+          } else {
+            Write-Error "❌ ffmpeg.exe not found in node_modules. Did npm install fail?"
+            exit 1
+          }
+
+      # 5. 打 Tauri Win 安装包（NSIS .exe + MSI 双份）
+      - name: 🔨 编译 Tauri Win 安装包
+        shell: pwsh
+        run: |
+          npx tauri build --target x86_64-pc-windows-msvc --bundles nsis,msi
+        env:
+          # Tauri 偶尔需要这个变量避免 Windows 路径过长
+          CARGO_TERM_COLOR: always
+
+      # 6. 上传安装包到 GitHub Artifacts（你能下载的 zip）
+      - name: 📤 上传安装包
+        uses: actions/upload-artifact@v4
+        with:
+          name: 可乐裁切-安装包
+          path: |
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
+          if-no-files-found: error
+          retention-days: 14
