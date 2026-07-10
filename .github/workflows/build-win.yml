@@ -26,19 +26,25 @@ jobs:
       - name: 📥 拉取代码
         uses: actions/checkout@v4
 
-      # 2. 装 Node 20（项目用 npm 装前端依赖 + ffmpeg-installer 触发下载 win 版 ffmpeg）
-      - name: 📦 装 Node.js 20
+      # 2. 装 Rust 工具链（Tauri 编译必须，windows-latest 镜像没预装 Rust）
+      - name: 🦀 装 Rust 工具链
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      # 3. 装 Node 22（Node 20 在 windows-latest 上已被强制升到 24，会出兼容警告，干脆用 22）
+      - name: 📦 装 Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
-      # 3. 装前端依赖（会触发 @ffmpeg-installer/ffmpeg 下载 win 版 ffmpeg 到 node_modules/@ffmpeg-installer/win32-x64/）
+      # 4. 装前端依赖（会触发 @ffmpeg-installer/ffmpeg 下载 win 版 ffmpeg 到 node_modules/@ffmpeg-installer/win32-x64/）
       - name: 📚 装 npm 依赖
         run: npm install
         shell: pwsh
 
-      # 4. 把 win 版 ffmpeg.exe 拷到 bin/ffmpeg.exe（Rust 端的 resolve_bin 已经会找 bin/ffmpeg.exe）
+      # 5. 把 win 版 ffmpeg.exe 拷到 bin/ffmpeg.exe（Rust 端的 resolve_bin 已经会找 bin/ffmpeg.exe）
       - name: 🎬 拷 ffmpeg.exe 到 bin/
         shell: pwsh
         run: |
@@ -53,7 +59,7 @@ jobs:
             exit 1
           }
 
-      # 5. 打 Tauri Win 安装包（NSIS .exe + MSI 双份）
+      # 6. 打 Tauri Win 安装包（NSIS .exe + MSI 双份）
       - name: 🔨 编译 Tauri Win 安装包
         shell: pwsh
         run: |
@@ -62,7 +68,7 @@ jobs:
           # Tauri 偶尔需要这个变量避免 Windows 路径过长
           CARGO_TERM_COLOR: always
 
-      # 6. 上传安装包到 GitHub Artifacts（你能下载的 zip）
+      # 7. 上传安装包到 GitHub Artifacts（你能下载的 zip）
       - name: 📤 上传安装包
         uses: actions/upload-artifact@v4
         with:
